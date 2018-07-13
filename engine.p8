@@ -71,30 +71,29 @@ end
 -->8
 -- state machine
 
-_machine = _object:extend()
+function _machine()
+  local stack = {}
 
-function _machine:init()
-  self.stack = {}
-end
+  function fire_up(ev, data)
+    foreach(stack, function(h) h[ev](h, data) end)
+  end
 
-function _machine:update()
-  for i=#self.stack, 1, -1 do
-    if self.stack[i]:update() then
-      break
+  function fire_down(ev, data)
+    for i=#stack, 1, -1 do
+      if stack[i][ev](stack[i], data) then
+        break
+      end
     end
   end
-end
 
-function _machine:draw()
-  foreach(self.stack, function(h) h:draw() end)
-end
-
-function _machine:pop()
-  self.stack[#self.stack] = nil
-end
-
-function _machine:push(k)
-  add(self.stack, k)
+  return {
+    fire_up=fire_up,
+    fire_down=fire_down,
+    update = function() fire_down('update') end,
+    draw = function() fire_up('draw') end,
+    pop = function() stack[#stack] = nil end,
+    push = function(k) add(stack, k) end,
+  }
 end
 
 -->8
