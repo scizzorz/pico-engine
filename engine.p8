@@ -76,6 +76,19 @@ function _machine()
 end
 
 -->8
+-- thick print
+
+function tprint(text, x, y, ic, oc)
+  for ox=-1, 1 do
+    for oy=-1, 1 do
+      print(text, x + ox, y + oy, oc)
+    end
+  end
+
+  print(text, x, y, ic)
+end
+
+-->8
 -- colors
 c_black=0
 c_darkblue=1
