@@ -9,16 +9,19 @@ __lua__
 _object = {}
 _object.__index = _object
 
+
 -- constructor
 function _object:__call(...)
   local this = setmetatable({}, self)
   return this, this:init(...)
 end
 
+
 -- methods
 function _object:init() end
 function _object:update() end
 function _object:draw() end
+
 
 -- subclassing
 function _object:extend()
@@ -41,60 +44,48 @@ end
 
 
 -->8
--- event handler
--- https://www.lexaloffle.com/bbs/?pid=38910&tid=29075
+-- state machine
 
-function _events()
-  local all = {}
-  return {
-    on = function(t, h)
-      if (nil == all[t]) then
-        all[t] = {}
+function _method(h, k)
+  return h[k] and h[k](h)
+end
+
+function _machine()
+  local stack = {}
+
+  function fire_up(ev)
+    foreach(stack, function(h) _method(h, ev) end)
+  end
+
+  function fire_down(ev)
+    for i=#stack, 1, -1 do
+      if _method(stack[i], ev) then
+        break
       end
-      add(all[t], h)
-    end,
-    off = function(t, h)
-      del(all[t], h)
-    end,
-    emit = function(t, e)
-      foreach(
-        all[t],
-        function(h)
-          h(e)
-        end
-      )
     end
+  end
+
+  return {
+    fire_up = fire_up,
+    fire_down = fire_down,
+    update = function() fire_down('update') end,
+    draw = function() fire_up('draw') end,
+    pop = function() stack[#stack] = nil end,
+    push = function(k) add(stack, k) end,
   }
 end
 
-
 -->8
--- state machine
+-- thick print
 
-_machine = _object:extend()
-
-function _machine:init()
-  self.stack = {}
-end
-
-function _machine:update()
-  for i=#self.stack, 1, -1 do
-    if self.stack[i]:update() then
-      break
+function tprint(text, x, y, ic, oc)
+  for ox=-1, 1 do
+    for oy=-1, 1 do
+      print(text, x + ox, y + oy, oc)
     end
   end
-end
 
-function _machine:draw()
-  foreach(self.stack, function(h) h:draw() end)
-end
-
-function _machine:pop()
-  self.stack[#self.stack] = nil
-end
-
-function _machine:push(k)
-  add(self.stack, k)
+  print(text, x, y, ic)
 end
 
 -->8
@@ -130,48 +121,46 @@ b_pause = 6
 
 -->8
 -- demo
+function world()
+  local x, y = 60, 60
+
+  return {
+    update = function()
+      if btn(b_left) then x -= 1 end
+      if btn(b_right) then x += 1 end
+      if btn(b_up) then y -= 1 end
+      if btn(b_down) then y += 1 end
+
+      if btnp(4) or btnp(5) then
+        game.push(menu())
+      end
+    end,
+
+    draw = function()
+      rectfill(0, 0, 128, 128, c_darkgreen)
+      rectfill(x, y, x + 8, y + 8, c_brown)
+    end,
+  }
+end
+
+function menu()
+  return {
+    draw = function()
+      rectfill(8, 8, 120, 120, c_lightgrey)
+      rectfill(9, 9, 119, 119, c_darkblue)
+    end,
+
+    update = function()
+      if btnp(4) or btnp(5) then
+        game:pop()
+      end
+      return true
+    end,
+  }
+end
+
 game = _machine()
+game.push(world())
 
-x = 60
-y = 60
-
-world = _object:extend()
-
-function world:init()
-  self.x = 0
-end
-
-function world:update()
-  if btn(b_left) then x -= 1 end
-  if btn(b_right) then x += 1 end
-  if btn(b_up) then y -= 1 end
-  if btn(b_down) then y += 1 end
-
-  if btnp(4) or btnp(5) then
-    game:push(menu())
-  end
-end
-
-function world:draw()
-  rectfill(0, 0, 128, 128, c_darkgreen)
-  rectfill(x, y, x + 8, y + 8, c_brown)
-end
-
-menu = _object:extend()
-
-function menu:draw()
-  rectfill(8, 8, 120, 120, c_lightgrey)
-  rectfill(9, 9, 119, 119, c_darkblue)
-end
-
-function menu:update()
-  if btnp(4) or btnp(5) then
-    game:pop()
-  end
-  return true
-end
-
-game:push(world())
-
-function _draw() game:draw() end
-function _update() game:update() end
+function _draw() game.draw() end
+function _update() game.update() end
